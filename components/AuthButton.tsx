@@ -1,37 +1,50 @@
-import { createClient } from "@/utils/supabase/server";
-import Link from "next/link";
-import { redirect } from "next/navigation";
+'use client'
 
-export default async function AuthButton() {
-  const supabase = createClient();
+import Link from 'next/link';
+import { Button } from '@mantine/core';
+import { use, useEffect, useState } from 'react';
+import { getUser, signOut, getProfile } from '@/utils/AuthFunction';
+import { User } from '@supabase/supabase-js';
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export default function AuthButton() {
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<any | null>(null);
 
-  const signOut = async () => {
-    "use server";
+  useEffect(() => {
+    const fetchUser = async () => {
+      const userData = await getUser();
+      setUser(userData?.data.user || null);
 
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    return redirect("/login");
+      if(userData){
+        const { profile, error } = await getProfile(userData.data.user?.id ?? '');
+        if (error) {
+          console.error("Error fetching profile:", error);
+          return;
+        }
+        setProfile(profile);
+        console.log(profile);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setUser(null);
+    } catch (error) {
+      // Handle error
+    }
   };
 
   return user ? (
     <div className="flex items-center gap-4">
-      Hey, {user.email}!
-      <form action={signOut}>
-        <button className="py-2 px-4 rounded-md no-underline bg-btn-background hover:bg-btn-background-hover">
-          Logout
-        </button>
-      </form>
+      <p>Hey, {profile ? profile.name : 'Nama tidak ditemukan'}</p>
+      <Button variant="default" onClick={handleSignOut}>Log out</Button>
     </div>
   ) : (
-    <Link
-      href="/login"
-      className="py-2 px-3 flex rounded-md no-underline bg-btn-background hover:bg-btn-background-hover"
-    >
-      Login
+    <Link href="/login">
+      <Button variant="default" >Log in</Button>
     </Link>
   );
 }
